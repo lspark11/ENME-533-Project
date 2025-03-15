@@ -39,13 +39,13 @@ void encoderCounter(int &counter, int &lastState, int CLK, int DT) {
     // Serial.print("changing counter value");
     if(digitalRead(DT) != currentStateCLK)
     {
-      Serial.print("counter-- CCW");
-      counter--;
+      // Serial.print("counter++ CW");
+      counter++;
     }
     else
     {
-      Serial.print("counter++ CW");
-      counter++;
+      // Serial.print("counter-- CCW");
+      counter--;
     }
   }
   Serial.println(counter);
