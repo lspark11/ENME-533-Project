@@ -1,5 +1,5 @@
 
-
+#include <Stepper.h>
 #include <Arduino.h>
 #define le_SW 2 //is the output of the push button switch (active low). When the knob is depressed, the voltage goes LOW.
 #define le_DT 3 //is similar to CLK output, but it lags behind CLK by a 90° phase shift. This output is used to determine the direction of rotation.
@@ -19,6 +19,11 @@ int y_counter =0;
 unsigned long y_lastButtonPressed = 0;
 bool y_btn_state = false;
 
+// initalize stepper motor pins
+const int stepsPerRevolution = 2100;
+Stepper myStepper_x(stepsPerRevolution, 31, 33, 35, 37);
+Stepper myStepper_y(stepsPerRevolution, 30, 32, 34, 36);
+int dir = 1;
 
 // put function declarations here:
 void encoderCounter(bool, bool&, int&, int&, int, int);
@@ -37,6 +42,10 @@ void setup() {
 
   re_currentStateCLK = digitalRead(re_CLK);
   le_currentStateCLK = digitalRead(le_CLK);
+
+  // set speed for the motors
+  myStepper_x.setSpeed(10);
+  myStepper_y.setSpeed(10);
   
   Serial.begin(9600);
 }
@@ -49,6 +58,9 @@ void loop() {
 
   encoderCounter(true, x_btn_state, x_counter, re_currentStateCLK, re_DT, re_CLK);
   encoderCounter(false, y_btn_state, y_counter, le_currentStateCLK, le_DT, le_CLK);
+
+  // stepper_x(x_counter);
+  
 }
 
 // put function definitions here:
@@ -67,20 +79,24 @@ void encoderCounter(bool xcounter, bool& btn_state, int &counter, int &lastState
     {
       // Serial.print("counter++ CW");
       counter++;
+      dir = 1;
     }
     else
     {
       // Serial.print("counter-- CCW");
       counter--;
+      dir = -1;
     }
 
     if (xcounter)
     {
       Serial.print("x movement:");
+      myStepper_x.step(dir * 200);
     }
     else
     {
       Serial.print("y movement:");
+      myStepper_y.step(dir * 200);
     }
   Serial.println(counter);
   }
