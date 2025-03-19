@@ -5,6 +5,7 @@
 #define le_DT 3 //is similar to CLK output, but it lags behind CLK by a 90° phase shift. This output is used to determine the direction of rotation.
 #define le_CLK 4//is the primary output pulse used to determine the amount of rotation. Each time the knob is turned in either direction by just one detent (click), the ‘CLK’ output goes through one cycle of going HIGH and then LOW.
 
+
 #define re_SW 5 
 #define re_DT 6 
 #define re_CLK 7 
