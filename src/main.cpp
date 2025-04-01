@@ -1,15 +1,49 @@
-
 #include <Stepper.h>
+#include <Servo.h>
 #include <Arduino.h>
+
 #define le_SW 2 //is the output of the push button switch (active low). When the knob is depressed, the voltage goes LOW.
 #define le_DT 3 //is similar to CLK output, but it lags behind CLK by a 90° phase shift. This output is used to determine the direction of rotation.
 #define le_CLK 4//is the primary output pulse used to determine the amount of rotation. Each time the knob is turned in either direction by just one detent (click), the ‘CLK’ output goes through one cycle of going HIGH and then LOW.
-
 
 #define re_SW 5 
 #define re_DT 6 
 #define re_CLK 7 
 
+//LED PINS
+#define y_yled 53 
+#define y_gled 51
+
+#define servo_bled 49
+#define io_rled 47
+#define io_gled 45
+
+#define x_yled 43
+#define x_gled 41
+
+//Servo pin
+#define servo 23
+
+//Button Pins
+#define servo_button 8
+#define io_button 9
+
+//Stepper motor pins
+#define stepperx_int1 31
+#define stepperx_int2 33
+#define stepperx_int3 35
+#define stepperx_int4 37
+
+#define steppery_int1 30
+#define steppery_int2 32
+#define steppery_int3 34
+#define steppery_int4 36
+
+//Button
+int ioButtonState;
+int servoButtonState;
+
+//Encoder
 int re_currentStateCLK = 0;
 int x_counter = 0;
 unsigned long x_lastButtonPressed = 0;
@@ -20,15 +54,19 @@ int y_counter =0;
 unsigned long y_lastButtonPressed = 0;
 bool y_btn_state = false;
 
+//Button Booleans
+bool systemOn = false;
+
 // initalize stepper motor pins
 const int stepsPerRevolution = 2100;
-Stepper myStepper_x(stepsPerRevolution, 31, 33, 35, 37);
-Stepper myStepper_y(stepsPerRevolution, 30, 32, 34, 36);
+Stepper myStepper_x(stepsPerRevolution, stepperx_int1, stepperx_int2, stepperx_int3, stepperx_int4); 
+Stepper myStepper_y(stepsPerRevolution, steppery_int1, steppery_int2, steppery_int3, steppery_int4); 
 int dir = 1;
 
 // put function declarations here:
 void encoderCounter(bool, bool&, int&, int&, int, int);
 void encoderButtonState(int, bool&, unsigned long&);
+void ioButtonActions();
 
 void setup() {
   //Setting up right encoder
@@ -41,27 +79,76 @@ void setup() {
   pinMode(le_DT, INPUT);
   pinMode(le_CLK, INPUT);
 
+  //Setting up LED's
+  pinMode(y_yled, OUTPUT);
+  pinMode(y_gled, OUTPUT);
+  pinMode(servo_bled, OUTPUT);
+  pinMode(io_rled, OUTPUT);
+  pinMode(io_gled, OUTPUT);
+  pinMode(x_yled, OUTPUT);
+  pinMode(x_gled, OUTPUT);
+
+  //Setting up servo
+  // myservo.attach(servo); 
+
+  //Setting up Buttons
+  pinMode(io_button, INPUT);
+  pinMode(servo_button, INPUT);
+
   re_currentStateCLK = digitalRead(re_CLK);
   le_currentStateCLK = digitalRead(le_CLK);
 
+  digitalWrite(io_rled, HIGH);
+
   // set speed for the motors
-  myStepper_x.setSpeed(10);
-  myStepper_y.setSpeed(10);
+  myStepper_x.setSpeed(15);
+  myStepper_y.setSpeed(15);
   
   Serial.begin(9600);
 }
 
 void loop() {
+
+  ioButtonActions();
   // put your main code here, to run repeatedly:
   encoderButtonState(re_SW, x_btn_state, x_lastButtonPressed);
   encoderButtonState(le_SW, y_btn_state, y_lastButtonPressed);
 
-
   encoderCounter(true, x_btn_state, x_counter, re_currentStateCLK, re_DT, re_CLK);
   encoderCounter(false, y_btn_state, y_counter, le_currentStateCLK, le_DT, le_CLK);
 
-  // stepper_x(x_counter);
-  
+}
+
+
+void ioButtonActions()
+{
+  ioButtonState = digitalRead(io_button);
+  // Serial.print(ioButtonState);
+  if (ioButtonState == HIGH && !systemOn) {
+    // turn LED on:
+    digitalWrite(io_gled, HIGH);
+    digitalWrite(io_rled, LOW);
+
+   
+    systemOn = true;
+    delay(500);
+    Serial.print("System on!\n");
+
+  } 
+  else if (ioButtonState == HIGH && systemOn) 
+  {
+    // turn LED off:
+    digitalWrite(io_gled, LOW);
+    digitalWrite(io_rled, HIGH);
+    digitalWrite(x_yled, LOW);
+    digitalWrite(x_gled, LOW);
+    digitalWrite(y_yled, LOW);
+    digitalWrite(y_gled, LOW);
+
+    systemOn = false;
+    delay(500);
+    Serial.print("System off!\n");
+  }
 }
 
 // put function definitions here:
@@ -71,8 +158,8 @@ void encoderCounter(bool xcounter, bool& btn_state, int &counter, int &lastState
   // Serial.print("entering function");
   // Serial.println(state);
   // Serial.println(lastState);
-
-
+  if (systemOn)
+  {
   if (currentStateCLK != lastState && currentStateCLK == 1 && !btn_state)
   {
     // Serial.print("changing counter value");
@@ -92,15 +179,45 @@ void encoderCounter(bool xcounter, bool& btn_state, int &counter, int &lastState
     if (xcounter)
     {
       Serial.print("x movement:");
+      Serial.println(dir*200);
       myStepper_x.step(dir * 200);
+
     }
-    else
+    else 
     {
       Serial.print("y movement:");
       myStepper_y.step(dir * 200);
+
     }
   Serial.println(counter);
   }
+  else if(!btn_state) //Allowed to move
+  {
+    if(xcounter)
+    {
+      digitalWrite(x_yled, LOW);
+      digitalWrite(x_gled, HIGH);
+    }
+    else
+    {
+      digitalWrite(y_gled, HIGH);
+      digitalWrite(y_yled, LOW);
+    }
+  }
+  else //Not allowed to move. Pressed down
+  {
+    if(xcounter)
+    {
+      digitalWrite(x_yled, HIGH);
+      digitalWrite(x_gled, LOW);
+    }
+    else
+    {
+      digitalWrite(y_yled, HIGH);
+      digitalWrite(y_gled, LOW);
+    }
+  }
+}
   lastState = currentStateCLK;
   return;
 }
@@ -136,7 +253,7 @@ void encoderButtonState(int SW_PIN, bool &btn_state, unsigned long &lastButtonPr
     }
   }
   // Put in a slight delay to help debounce the reading
-	delay(1);
+	delay(5);
 }
 //---------------------References---------------------
 //For encoders: https://lastminuteengineers.com/rotary-encoder-arduino-tutorial/
