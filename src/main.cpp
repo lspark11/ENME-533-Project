@@ -56,6 +56,7 @@ bool y_btn_state = false;
 
 //Button Booleans
 bool systemOn = false;
+bool servoDown = false;
 
 // initalize stepper motor pins
 const int stepsPerRevolution = 2100;
@@ -67,6 +68,9 @@ int dir = 1;
 void encoderCounter(bool, bool&, int&, int&, int, int);
 void encoderButtonState(int, bool&, unsigned long&);
 void ioButtonActions();
+void servoButtonActions();
+
+Servo myServo;
 
 void setup() {
   //Setting up right encoder
@@ -89,7 +93,7 @@ void setup() {
   pinMode(x_gled, OUTPUT);
 
   //Setting up servo
-  // myservo.attach(servo); 
+  myServo.attach(servo); 
 
   //Setting up Buttons
   pinMode(io_button, INPUT);
@@ -110,6 +114,7 @@ void setup() {
 void loop() {
 
   ioButtonActions();
+  servoButtonActions();
   // put your main code here, to run repeatedly:
   encoderButtonState(re_SW, x_btn_state, x_lastButtonPressed);
   encoderButtonState(le_SW, y_btn_state, y_lastButtonPressed);
@@ -144,11 +149,53 @@ void ioButtonActions()
     digitalWrite(x_gled, LOW);
     digitalWrite(y_yled, LOW);
     digitalWrite(y_gled, LOW);
+    if (servoDown)
+    {
+      Serial.print("Raising pen for shutoff. \n");
+      myServo.write(90);
+      digitalWrite(servo_bled, LOW);
+      servoDown = false;
+    }
 
     systemOn = false;
     delay(500);
     Serial.print("System off!\n");
   }
+}
+
+void servoButtonActions()
+{
+  if (systemOn)
+  {
+    servoButtonState = digitalRead(servo_button);
+    // Serial.print(ioButtonState);
+    if (servoButtonState == HIGH && !servoDown) {
+      // turn LED on:
+      digitalWrite(servo_bled, HIGH);
+      servoDown = true;
+      myServo.write(-90);
+      Serial.print("Pen in contact!\n");
+      delay(500);
+    } 
+    else if (servoButtonState == HIGH && servoDown) 
+    {
+      digitalWrite(servo_bled, LOW);
+      servoDown = false;
+      myServo.write(90);
+      Serial.print("Pen Raised.\n");
+      delay(500);
+    }
+  
+    if (servoDown)
+    {
+      digitalWrite(servo_bled, HIGH);
+    }
+    else
+    {
+      digitalWrite(servo_bled, LOW);
+    }
+  }
+  
 }
 
 // put function definitions here:
