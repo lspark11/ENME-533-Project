@@ -54,6 +54,9 @@ int y_counter =0;
 unsigned long y_lastButtonPressed = 0;
 bool y_btn_state = false;
 
+int y_counter_lim = 5;
+int x_counter_lim = 5;
+
 //Button Booleans
 bool systemOn = false;
 bool servoDown = false;
@@ -223,22 +226,22 @@ void encoderCounter(bool xcounter, bool& btn_state, int &counter, int &lastState
       dir = -1;
     }
 
-    if (xcounter)
+    if (xcounter && (abs(counter) < x_counter_lim))
     {
       Serial.print("x movement:");
       Serial.println(dir*200);
       myStepper_x.step(dir * 200);
+      
 
     }
-    else 
+    else if (!xcounter && (abs(counter) < y_counter_lim))
     {
       Serial.print("y movement:");
       myStepper_y.step(dir * 200);
-
     }
   Serial.println(counter);
   }
-  else if(!btn_state) //Allowed to move
+  else if(!btn_state && (abs(counter) < y_counter_lim) && (abs(counter) < x_counter_lim)) //Allowed to move
   {
     if(xcounter)
     {
@@ -250,6 +253,16 @@ void encoderCounter(bool xcounter, bool& btn_state, int &counter, int &lastState
       digitalWrite(y_gled, HIGH);
       digitalWrite(y_yled, LOW);
     }
+  }
+  else if ((abs(counter) < x_counter_lim) && xcounter)
+  {
+    digitalWrite(x_yled, HIGH);
+    digitalWrite(x_gled, LOW);
+  }
+  else if ((abs(counter) < y_counter_lim) && !xcounter)
+  {
+    digitalWrite(y_yled, HIGH);
+    digitalWrite(y_gled, LOW);
   }
   else //Not allowed to move. Pressed down
   {
