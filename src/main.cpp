@@ -2,6 +2,7 @@
 #include <Servo.h>
 #include <Arduino.h>
 
+//------------PIN DEFINITIONS------------
 #define le_SW 2 //is the output of the push button switch (active low). When the knob is depressed, the voltage goes LOW.
 #define le_DT 3 //is similar to CLK output, but it lags behind CLK by a 90° phase shift. This output is used to determine the direction of rotation.
 #define le_CLK 4//is the primary output pulse used to determine the amount of rotation. Each time the knob is turned in either direction by just one detent (click), the ‘CLK’ output goes through one cycle of going HIGH and then LOW.
@@ -116,13 +117,17 @@ void setup() {
 
 void loop() {
 
-  ioButtonActions();
-  servoButtonActions();
-  // put your main code here, to run repeatedly:
-  encoderButtonState(re_SW, x_btn_state, x_lastButtonPressed);
-  encoderButtonState(le_SW, y_btn_state, y_lastButtonPressed);
+  ioButtonActions(); //Takes in input from the on/off button. 
+  servoButtonActions(); //Takes in input from the servo button
 
+ 
+  encoderButtonState(re_SW, x_btn_state, x_lastButtonPressed);  //checks if x encoder button is pressed.
+  encoderButtonState(le_SW, y_btn_state, y_lastButtonPressed); //checks if y encoder button is pressed.
+
+  //Writes to stepper motor on how much and which direction to move. This is for the x motor.
+  //Also deals with the respective LEDs
   encoderCounter(true, x_btn_state, x_counter, re_currentStateCLK, re_DT, re_CLK);
+  //Same logic as above but for the y motor and LEDs 
   encoderCounter(false, y_btn_state, y_counter, le_currentStateCLK, le_DT, le_CLK);
 
 }
@@ -130,19 +135,23 @@ void loop() {
 
 void ioButtonActions()
 {
+  //Takes in the digital read of the io-button
   ioButtonState = digitalRead(io_button);
   // Serial.print(ioButtonState);
+
+  //compares it and sees if its on and if it has been pressed before. Turns it on
   if (ioButtonState == HIGH && !systemOn) {
     // turn LED on:
     digitalWrite(io_gled, HIGH);
     digitalWrite(io_rled, LOW);
 
-   
     systemOn = true;
     delay(500);
     Serial.print("System on!\n");
 
   } 
+
+  //  //compares it and sees if its on and if it has been pressed before. Turns it off
   else if (ioButtonState == HIGH && systemOn) 
   {
     // turn LED off:
@@ -154,12 +163,12 @@ void ioButtonActions()
     digitalWrite(y_gled, LOW);
     if (servoDown)
     {
+      //If the servo is down, the pen is raised when the system is shutting down.
       Serial.print("Raising pen for shutoff. \n");
       myServo.write(90);
       digitalWrite(servo_bled, LOW);
       servoDown = false;
     }
-
     systemOn = false;
     delay(500);
     Serial.print("System off!\n");
@@ -172,29 +181,33 @@ void servoButtonActions()
   {
     servoButtonState = digitalRead(servo_button);
     // Serial.print(ioButtonState);
+
+    //Same logic as ioButtonActions for comparing button states.
     if (servoButtonState == HIGH && !servoDown) {
       // turn LED on:
-      digitalWrite(servo_bled, HIGH);
+      digitalWrite(servo_bled, HIGH); //Turns the servo indicator light on
       servoDown = true;
-      myServo.write(-90);
+      myServo.write(-90); //Brings pen down
       Serial.print("Pen in contact!\n");
       delay(500);
     } 
     else if (servoButtonState == HIGH && servoDown) 
     {
-      digitalWrite(servo_bled, LOW);
+      digitalWrite(servo_bled, LOW); //Turns the servo indicator light off
       servoDown = false;
-      myServo.write(90);
+      myServo.write(90); //Brings pen up
       Serial.print("Pen Raised.\n");
       delay(500);
     }
   
     if (servoDown)
     {
+      //Turns the servo indicator light on
       digitalWrite(servo_bled, HIGH);
     }
     else
     {
+      //Turns the servo indicator light off
       digitalWrite(servo_bled, LOW);
     }
   }
@@ -210,55 +223,59 @@ void encoderCounter(bool xcounter, bool& btn_state, int &counter, int &lastState
   // Serial.println(lastState);
   if (systemOn)
   {
+    //If statement compares to see if the encoder count is going up or down.
   if (currentStateCLK != lastState && currentStateCLK == 1 && !btn_state)
   {
     // Serial.print("changing counter value");
     if(digitalRead(DT) != currentStateCLK)
     {
       // Serial.print("counter++ CW");
-      counter++;
-      dir = 1;
+      counter++; //increases counter
+      dir = 1; //Positive means clockwise 
     }
     else
     {
       // Serial.print("counter-- CCW");
-      counter--;
-      dir = -1;
+      counter--; //decreses counter
+      dir = -1; //Negative means counter clockwise
     }
 
+    //If xcounter is true, the function is referring to the x encoder
     if (xcounter && (abs(counter) < x_counter_lim))
     {
       Serial.print("x movement:");
       Serial.println(dir*200);
-      myStepper_x.step(dir * 200);
+      myStepper_x.step(dir * 200); //Writes to the stepper motor to go CW/CCW based on prev code
       
-
     }
+    //If xcounter is false, the function is referring to the y encoder
     else if (!xcounter && (abs(counter) < y_counter_lim))
     {
       Serial.print("y movement:");
-      myStepper_y.step(dir * 200);
+      myStepper_y.step(dir * 200);//Writes to the stepper motor to go CW/CCW based on prev code
     }
   Serial.println(counter);
   }
   else if(!btn_state && (abs(counter) < y_counter_lim) && (abs(counter) < x_counter_lim)) //Allowed to move
   {
     if(xcounter)
-    {
+    { //Turns x encoder green LED on, yellow LED off
       digitalWrite(x_yled, LOW);
       digitalWrite(x_gled, HIGH);
     }
     else
-    {
+    {//Turns y encoder green LED on, yellow LED off
       digitalWrite(y_gled, HIGH);
       digitalWrite(y_yled, LOW);
     }
   }
+  //Checks if x encoder button is clicked, restricts input from x encoder
   else if ((abs(counter) < x_counter_lim) && xcounter)
   {
     digitalWrite(x_yled, HIGH);
     digitalWrite(x_gled, LOW);
   }
+  //Checks if y encoder button is clicked, restricts input from y encoder
   else if ((abs(counter) < y_counter_lim) && !xcounter)
   {
     digitalWrite(y_yled, HIGH);
@@ -292,7 +309,7 @@ void encoderButtonState(int SW_PIN, bool &btn_state, unsigned long &lastButtonPr
   //If we detect LOW signal, button is pressed
   {
     //if 50ms have passed since last LOW pulse, it means that the
-		//button has been pressed, released and pressed again
+		//button has been pressed, released and pressed again 
 		if (millis() - lastButtonPress > 50) 
     {
       btnPressed = true;
